@@ -6,16 +6,6 @@ import pandas as pd
 from . import settings
 
 
-def lookup(s):
-    """
-    This is an extremely fast approach to datetime parsing.
-    For large data, the same dates are often repeated. Rather than
-    re-parse these, we store all unique dates, parse them, and
-    use a lookup to convert all dates.
-    """
-    dates = {date:pd.to_datetime(date) for date in s.unique()}
-    return s.map(dates)
-
 def get_data(cryptocurrency):
     crypto_path = os.path.join(settings.RESOURSES_DIR, cryptocurrency)
 
@@ -35,24 +25,27 @@ def get_data(cryptocurrency):
 
     # Categorize vader scores
     reply_df = _transform_vader_series(reply_df, 'reply')
+    topic_df = _transform_vader_series(topic_df, 'topic')
+
     # Drop useless columns
     _drop_inplace(reply_df, ['reply', 'vader'])
+    _drop_inplace(topic_df, ['topic', 'reply', 'topiccontent', 'vader', 'opinion'])
+
     # Group by date and aggregate vader categorical columns
     reply_df = _fold_categorical_vader(reply_df, 'reply', by='date')
-    reply_df = _sum_categorical_vader(reply_df, 'reply')
-
-    # Categorize vader scores
-    topic_df = _transform_vader_series(topic_df, 'topic')
-    # Drop useless columns
-    _drop_inplace(topic_df, ['topic', 'reply', 'topiccontent', 'vader', 'opinion'])
-    # Group by date and aggregate vader categorical columns
     topic_df = _fold_categorical_vader(topic_df, 'topic', by='date', agg={'views':'sum'})
+
+    # Calculate 
+    reply_df = _sum_categorical_vader(reply_df, 'reply')
     topic_df = _sum_categorical_vader(topic_df, 'topic')  
 
     dfs = [price_df, transactions_df, reply_df, topic_df]
 
     # Merge data frames
     full_df = _merge_frames(dfs, on='date')
+
+    # Transform date strings into datetime
+    full_df["date"] = pd.to_datetime(full_df["date"])
 
     return full_df
 
@@ -126,15 +119,15 @@ def _fold_categorical_vader(df, header_suffix, by=None, agg={}):
 
 def _sum_categorical_vader(df, header_suffix):
     categorical_columns = _get_categorical_vader(header_suffix)
-    df[header_suffix + '_total'] = df[categorical_columns].sum(axis=1)
+    df['total_' + header_suffix] = df[categorical_columns].sum(axis=1)
     return df
 
 def _get_categorical_vader(header_suffix):
-    very_negative = header_suffix + '_very_negative'
-    negative = header_suffix + '_negative'
-    neutral = header_suffix + '_neutral'
-    positive = header_suffix + '_positive'
-    very_positive = header_suffix + '_very_positive'
+    very_negative = 'very_negative_' + header_suffix
+    negative = 'negative_' + header_suffix
+    neutral = 'neutral_' + header_suffix
+    positive = 'positive_' + header_suffix
+    very_positive = 'very_positive_' + header_suffix
 
     return [very_negative, negative, neutral, positive, very_positive]
 
