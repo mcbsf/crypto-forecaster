@@ -1,0 +1,7 @@
+# Constraints holds all packages versions used by any environment
+-c constraints.txt
+# Dependencies common to all environments
+statsmodels
+numpy
+scipy
+pandas
