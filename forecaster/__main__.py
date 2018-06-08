@@ -17,22 +17,22 @@ mask = (df['date'] > start_date) & (df['date'] <= end_date)
 # df['positive_reply'] = stats.zscore(df['positive_reply'])
 # df['very_negative_reply'] = stats.zscore(df['very_negative_reply'])
 
-df['price'] = timeseries.first_differentiate(df['price'])
-df['positive_reply'] = timeseries.first_differentiate(df['positive_reply'])
-df['very_negative_reply'] = timeseries.first_differentiate(df['very_negative_reply'])
+df['price'] = timeseries.first_differentiate(df['price'], periods=10)
+df['positive_reply'] = timeseries.first_differentiate(df['positive_reply'], periods=10)
+df['very_negative_reply'] = timeseries.first_differentiate(df['very_negative_reply'], periods=10)
 
 # Drop nan values
 df = df.dropna()
 
 # Metrics and plots
-# timeseries.metrics(df['price'])
-# timeseries.plot(df['date'], df['price'], '', '')
+timeseries.metrics(df['price'])
+timeseries.plot(df['date'], df['price'], '', '')
 
-# timeseries.metrics(df['positive_reply'])
-# timeseries.plot(df['date'], df['positive_reply'], '', '')
+timeseries.metrics(df['positive_reply'])
+timeseries.plot(df['date'], df['positive_reply'], '', '')
 
-# timeseries.metrics(df['very_negative_reply'])
-# timeseries.plot(df['date'], df['very_negative_reply'], '', '')
+timeseries.metrics(df['very_negative_reply'])
+timeseries.plot(df['date'], df['very_negative_reply'], '', '')
 
 restricted_df = df.loc[mask]
 
