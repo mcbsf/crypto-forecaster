@@ -12,9 +12,12 @@ def get_data(cryptocurrency):
     # Currency related data frames
     price_df = _read_csv(os.path.join(crypto_path, 'price.csv'))
     _lower_headers(price_df)
+    price_df = _floaterize_prices(price_df)
+    price_df['date'] = pd.to_datetime(price_df['date'])
 
     transactions_df = _read_csv(os.path.join(crypto_path, 'transactions.csv'))
     _lower_headers(transactions_df)
+    transactions_df['date'] = pd.to_datetime(transactions_df['date'])
 
     # Forum related data frames
     reply_df = _read_csv(os.path.join(crypto_path, 'reply_opinion.csv'))
@@ -39,15 +42,16 @@ def get_data(cryptocurrency):
     reply_df = _sum_categorical_vader(reply_df, 'reply')
     topic_df = _sum_categorical_vader(topic_df, 'topic')  
 
-    dfs = [price_df, transactions_df, reply_df, topic_df]
+    # Merge data frames
+    dfs = [reply_df, topic_df]
+    forum_related = _merge_frames(dfs, on='date')
+    forum_related['date'] = pd.to_datetime(forum_related['date'])
 
     # Merge data frames
+    dfs = [price_df, transactions_df, forum_related]
     full_df = _merge_frames(dfs, on='date')
 
-    # Transform date strings into datetime
-    full_df["date"] = pd.to_datetime(full_df["date"])
-
-    return full_df
+    return full_df.sort_values(by='date')
 
 def _read_csv(file_path):
     try:
@@ -59,6 +63,16 @@ def _read_csv(file_path):
 
 def _lower_headers(df):
     df.columns = map(str.lower, df.columns)
+
+def _floaterize_prices(price_df):
+    remove_comma = lambda text: text.replace(',', '')
+
+    price_df['open'] = price_df['open'].apply(remove_comma).astype(float)
+    price_df['close'] = price_df['close'].apply(remove_comma).astype(float)
+    price_df['high'] = price_df['high'].apply(remove_comma).astype(float)
+    price_df['low'] = price_df['low'].apply(remove_comma).astype(float)
+
+    return price_df
 
 def _transform_vader_series(df, header_suffix):
     """
