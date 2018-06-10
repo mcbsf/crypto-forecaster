@@ -12,7 +12,7 @@ def get_data(cryptocurrency):
     # Currency related data frames
     price_df = _read_csv(os.path.join(crypto_path, 'price.csv'))
     _lower_headers(price_df)
-    price_df = _floaterize_prices(price_df)
+    # price_df = _floaterize_prices(price_df)
     price_df['date'] = pd.to_datetime(price_df['date'])
 
     transactions_df = _read_csv(os.path.join(crypto_path, 'transactions.csv'))
@@ -67,10 +67,12 @@ def _lower_headers(df):
 def _floaterize_prices(price_df):
     remove_comma = lambda text: text.replace(',', '')
 
-    price_df['open'] = price_df['open'].apply(remove_comma).astype(float)
-    price_df['close'] = price_df['close'].apply(remove_comma).astype(float)
-    price_df['high'] = price_df['high'].apply(remove_comma).astype(float)
-    price_df['low'] = price_df['low'].apply(remove_comma).astype(float)
+    # price_df['open'] = price_df['open'].apply(remove_comma).astype(float)
+    # price_df['close'] = price_df['close'].apply(remove_comma).astype(float)
+    # price_df['high'] = price_df['high'].apply(remove_comma).astype(float)
+    # price_df['low'] = price_df['low'].apply(remove_comma).astype(float)
+    
+    price_df['price'] = price_df['price'].apply(remove_comma).astype(float)
 
     return price_df
 
