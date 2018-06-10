@@ -20,8 +20,9 @@ aode = AODE()
 kf = KFold(n_splits=5, shuffle=True) # 80% for training, 20% for testing
 
 results = {}
+estimation = 'count'
 for relation in data_collection.documents:
-    file_ = codecs.open('res/promise/results/' + relation + '.txt', 'w+', 'utf-8')
+    file_ = codecs.open('res/promise/results/' + relation + '-' + estimation + '.txt', 'w+', 'utf-8')
 
     results[relation] = {}
     results[relation] = {}
@@ -51,7 +52,7 @@ for relation in data_collection.documents:
         # Test
         pred_labels = []
         for data in test_data:
-            pred_labels.append(aode.predict(data))
+            pred_labels.append(aode.predict(data, estimation=estimation))
 
         metrics = precision_recall_fscore_support(test_labels, pred_labels, average='weighted')
         precision, recall, f1, _ = metrics
