@@ -87,6 +87,11 @@ class AODE(object):
             # Return the probability for every class given the data
             return labels_probability
 
+        if estimation == 'count':
+            # When using counter mode, the classifier obtains better results when
+            # the class with lower probability is returned
+            return min(labels_probability.items(), key=operator.itemgetter(1))[0]
+
         # Return the label with higher probability
         return max(labels_probability.items(), key=operator.itemgetter(1))[0]
 
