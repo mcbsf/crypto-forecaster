@@ -125,7 +125,7 @@ class AODE(object):
             label_feature_freq += len(self.feature_values[feature])
 
         # Laplace smoothing
-        elif estimation == 'laplace':
+        elif estimation == 'laplace' or estimation == 'count':
             value_freq += 1
             label_feature_freq += 1
 
@@ -182,6 +182,13 @@ class AODE(object):
         # Laplace smoothing
         elif estimation == 'laplace':
             values_freq += 1
+            label_feature_freq += 1
+
+        # Frequency count with laplace smoothing
+        elif estimation == 'count':
+            values_freq += 1
+
+            label_feature_freq = len(value_indices)
             label_feature_freq += 1
 
         return values_freq/label_feature_freq
