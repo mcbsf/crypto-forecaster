@@ -12,7 +12,7 @@ class AODE(object):
         self.total_data_amount = 0
         self.feature_values = defaultdict(list)
 
-    def fit(self, data, labels, online=True):
+    def fit(self, data, labels, online=False):
         if not online:
             self.freq_counts = {}
             self.label_data_amount = {}

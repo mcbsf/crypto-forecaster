@@ -2,9 +2,17 @@ import os
 from functools import reduce
 
 import pandas as pd
+import numpy as np
 
 from . import settings
 
+
+def categorize_labels(df, labels=['price', 'transactions']):
+    df[labels] = df[labels].diff().apply(np.sign)
+    df = df.dropna()
+    df[labels] = df[labels].astype(str)
+
+    return df
 
 def get_data(cryptocurrency):
     crypto_path = os.path.join(settings.RESOURSES_DIR, cryptocurrency)
@@ -51,7 +59,14 @@ def get_data(cryptocurrency):
     dfs = [price_df, transactions_df, forum_related]
     full_df = _merge_frames(dfs, on='date')
 
-    return full_df.sort_values(by='date')
+    # Sort by date
+    full_df = full_df.sort_values(by='date')
+
+    Set dates to index
+    full_df.index = pd.DatetimeIndex(full_df['date'])
+    full_df = full_df.drop(columns='date')
+
+    return full_df
 
 def _read_csv(file_path):
     try:
