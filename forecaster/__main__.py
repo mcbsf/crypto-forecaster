@@ -1,90 +1,143 @@
-from . import timeseries, retriever
-import pandas as pd
+import codecs
+
 import numpy as np
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, classification_report
+from sklearn.model_selection import KFold
 from scipy import stats
-from statsmodels.tsa.api import VAR
-from statsmodels.tsa.stattools import grangercausalitytests
-from statsmodels.tsa.stattools import coint
+from sklearn.svm import SVC
+
+from . import classifiers, retriever, timeseries
 
 
-df = retriever.get_data('bitcoin')
-price_header = 'price'
 
-start_date = pd.to_datetime('2013-12-02')
-end_date = pd.to_datetime('2014-01-30')
+def _split(data):
+    ret = []
+    for i in range(0, len(data), 60):
+        if i+60 > len(data):
+            break
 
-mask = (df['date'] > start_date) & (df['date'] <= end_date)
+        ret.append(
+            (list(range(i, i+30)), list(range(i+30, i+60)))
+        )
+    return ret
 
-df[price_header] = stats.zscore(df[price_header])
-df['positive_reply'] = stats.zscore(df['positive_reply'])
-df['very_negative_reply'] = stats.zscore(df['very_negative_reply'])
+# Auxiliary data
+cryptocurrencies = ['bitcoin']
+estimations = ['count', 'paper'] # 
+data_headers = {
+    'bitcoin': {
+        'price': ['total_topic', 'positive_topic', 'very_positive_topic', 'positive_reply'],
+        'transactions': ['total_topic', 'very_positive_topic', 'very_positive_reply'],
+    }
+}
+label_headers = ['price', 'transactions']
 
-df[price_header] = timeseries.standardize_laggedly(df[price_header])
-df['positive_reply'] = timeseries.standardize_laggedly(df['positive_reply'])
-df['very_negative_reply'] = timeseries.standardize_laggedly(df['very_negative_reply'])
+aode = classifiers.AODE()
+svclassifier = SVC(kernel='poly', degree=8, probability=True)
+kf = KFold(n_splits=10, shuffle=True) # 90% for training, 10% for testing
 
-# df[price_header] = timeseries.first_differentiate(df[price_header])
-# df['positive_reply'] = timeseries.first_differentiate(df['positive_reply'])
-# df['very_negative_reply'] = timeseries.first_differentiate(df['very_negative_reply'])
+results = {}
+for cryptocurrency in cryptocurrencies:
+    print('\nTesting for ' + cryptocurrency + ' data set')
 
-# Drop nan values
-df = df.dropna()
+    file_name = 'res/forecasting_results/' + cryptocurrency + '.txt'
+    file_ = codecs.open(file_name, 'w+', 'utf-8')
 
-restricted_df = df.loc[mask]
+    results[cryptocurrency] = {}
 
-# Metrics and plots
-timeseries.metrics(restricted_df[price_header])
-timeseries.plot(restricted_df['date'], restricted_df[price_header], '', '')
+    # Collect data
+    df = retriever.get_data(cryptocurrency).apply(stats.zscore)
+    # Binerize labels
+    df = retriever.categorize_labels(df, label_headers)
 
-timeseries.metrics(restricted_df['positive_reply'])
-timeseries.plot(restricted_df['date'], restricted_df['positive_reply'], '', '')
+    for label in label_headers:
+        results[cryptocurrency][label] = {}
 
-timeseries.metrics(restricted_df['very_negative_reply'])
-timeseries.plot(restricted_df['date'], restricted_df['very_negative_reply'], '', '')
+        # Extract features and labels
+        data = df.drop(columns=label_headers).apply(timeseries.standardize_laggedly).dropna()
+        data = np.array(data[data_headers[cryptocurrency][label]]) # [data_headers[cryptocurrency][label]]
+        
+        # Print some status
+        data_len = len(data)
+        features_amount = data[0].size
+        print('\tTotal data collected: ' + str(data_len))
+        print('\tTotal of features per data: ' + str(features_amount))
 
-# Standalone Granger causality
-stack = np.column_stack((restricted_df[price_header], restricted_df['positive_reply']))
-res = grangercausalitytests(stack, 13)
+        for estimation in estimations:
+            aode = classifiers.AODE()
+            
+            print('\tPerforming 10-Fold estimating probabilities on \'' + estimation + '\' mode')
 
-print('\n\n\n\n\n')
-stack = np.column_stack((restricted_df[price_header], restricted_df['very_negative_reply']))
-res = grangercausalitytests(stack, 13)
+            file_.write(
+                'Results for \'' + label + '\' ' + cryptocurrency +
+                ' estimating probabilities on \'' + estimation + '\' mode:\n'
+            )
 
-print(coint(restricted_df[price_header], restricted_df['positive_reply'], maxlag=2, autolag=None))
+            results[cryptocurrency][label][estimation] = {}
 
-# VAR model Granger causality
-# mdata = restricted_df[['price', 'positive_reply', 'very_negative_reply']]
-# mdata.index = pd.DatetimeIndex(restricted_df['date'])
+            for lag in range(1, 14):
+                labels = np.array(df[label][10:].shift(lag))
+                print('\n\n\t\tPredicting with lag =', str(lag))
+                
+                file_.write('\tLag = ' + str(lag))
 
-# model = VAR(mdata)
+                lagged_data = data[lag:]
+                lagged_labels = labels[lag:]
 
-# results = model.fit(13)
+                precisions = []
+                recalls = []
+                f1s = []
+                accuracies = []
+                # for train_indices, test_indices in _split(lagged_data):
+                train_data, test_data = lagged_data[:697], lagged_data[697:]
+                train_labels, test_labels = lagged_labels[:697], lagged_labels[697:]
 
-# results.summary()
-# results.plot().show()
+                # Training
+                aode.fit(train_data, train_labels, online=False)
+                # svclassifier.fit(train_data, train_labels)
 
-# results.plot_acorr().show()
+                # Test
+                pred_labels = []
+                for element in test_data:
+                    pred_labels.append(aode.predict(element, estimation=estimation))
+                # pred_labels = svclassifier.predict(test_data)  
 
-# tres = results.test_causality('price', ['positive_reply'], kind='f')
-# print('tres.test_statistic:', tres.test_statistic)
-# print('tres.crit_value:', tres.crit_value)
-# print('tres.pvalue:', tres.pvalue)
-# print('tres.df:', tres.df)
+                # print('\n\n\n\n\n\n')
+                # print(set(train_labels), set(pred_labels))
 
-# tres = results.test_causality('price', ['very_negative_reply'], kind='f')
-# print('tres.test_statistic:', tres.test_statistic)
-# print('tres.crit_value:', tres.crit_value)
-# print('tres.pvalue:', tres.pvalue)
-# print('tres.df:', tres.df)
+                metrics = precision_recall_fscore_support(
+                    test_labels, pred_labels, average='weighted'
+                )
 
-# tres = results.test_causality('price', ['positive_reply', 'very_negative_reply'], kind='f')
-# print('tres.test_statistic:', tres.test_statistic)
-# print('tres.crit_value:', tres.crit_value)
-# print('tres.pvalue:', tres.pvalue)
-# print('tres.df:', tres.df)
+                print(
+                    '\t\t\t',
+                    classification_report(test_labels, pred_labels).replace('\n', '\n\t\t\t')
+                )
 
-# tres = results.test_causality('price', ['positive_reply', 'very_negative_reply'], kind='wald')
-# print('tres.test_statistic:', tres.test_statistic)
-# print('tres.crit_value:', tres.crit_value)
-# print('tres.pvalue:', tres.pvalue)
-# print('tres.df:', tres.df)
+                precision, recall, f1, _ = metrics
+                accuracy = accuracy_score(test_labels, pred_labels)
+
+                print('\t\t\tAccuracy:', accuracy)
+
+                precisions.append(precision)
+                recalls.append(recall)
+                f1s.append(f1)
+                accuracies.append(accuracy)
+                #####
+
+                results[cryptocurrency][label][estimation]['precision'] = precisions
+                results[cryptocurrency][label][estimation]['recall'] = recalls
+                results[cryptocurrency][label][estimation]['f1'] = f1s
+                results[cryptocurrency][label][estimation]['accuracy'] = accuracies
+
+                file_.write('\n\t\tPrecisions: ' + str(precisions))
+                file_.write('\n\t\t\tMean: ' + str(np.mean(precisions)))
+
+                file_.write('\n\t\tRecalls: ' + str(recalls))
+                file_.write('\n\t\t\tMean: ' + str(np.mean(recalls)))
+
+                file_.write('\n\t\tF1s: ' + str(f1s))
+                file_.write('\n\t\t\tMean: ' + str(np.mean(f1s)))
+
+                file_.write('\n\t\tAccuracies: ' + str(accuracies))
+                file_.write('\n\t\t\tMean: ' + str(np.mean(accuracies)) + '\n\n')
