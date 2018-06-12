@@ -3,14 +3,12 @@ import codecs
 import numpy as np
 
 from sklearn.metrics import precision_recall_fscore_support
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 
 from .util import context
 from .util.data_collection import DataCollection, EDataType
 
 from forecaster.classifiers import AODE
-
 
 
 print('Collecting data...')
@@ -24,7 +22,6 @@ estimation = 'count'
 for relation in data_collection.documents:
     file_ = codecs.open('res/promise/results/' + relation + '-' + estimation + '.txt', 'w+', 'utf-8')
 
-    results[relation] = {}
     results[relation] = {}
 
     print('\nTesting for ' + relation + ' data set')
@@ -42,9 +39,9 @@ for relation in data_collection.documents:
     all_recall = []
     all_f1 = []
 
-    for train_indexes, test_indexes in kf.split(relation_data):
-        train_data, test_data = relation_data[train_indexes], relation_data[test_indexes]
-        train_labels, test_labels = relation_labels[train_indexes], relation_labels[test_indexes]
+    for train_indices, test_indices in kf.split(relation_data):
+        train_data, test_data = relation_data[train_indices], relation_data[test_indices]
+        train_labels, test_labels = relation_labels[train_indices], relation_labels[test_indices]
 
         # Training
         aode.fit(train_data, train_labels, online=False)
@@ -68,5 +65,3 @@ for relation in data_collection.documents:
     file_.write('Precision:\n' + str(all_precisions) + '\nMean: ' + str(np.mean(all_precisions)))
     file_.write('\n\nRecall:\n' + str(all_recall) + '\nMean: ' + str(np.mean(all_recall)))
     file_.write('\n\nF1:\n' + str(all_f1) + '\nMean: ' + str(np.mean(all_f1)))
-
-    # plot_stuff(results[relation], relation, list(range(1, features_amount+1)))

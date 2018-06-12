@@ -4,7 +4,9 @@ from functools import reduce
 import pandas as pd
 import numpy as np
 
-from . import settings
+from . import context
+
+from forecaster import settings
 
 
 def categorize_labels(df, labels=['price', 'transactions']):
@@ -63,8 +65,8 @@ def get_data(cryptocurrency):
     full_df = full_df.sort_values(by='date')
 
     # Set dates to index
-    full_df.index = pd.DatetimeIndex(full_df['date'])
-    full_df = full_df.drop(columns='date')
+    # full_df.index = pd.DatetimeIndex(full_df['date'])
+    # full_df = full_df.drop(columns='date')
 
     return full_df
 
