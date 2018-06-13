@@ -10,41 +10,37 @@ from .util import retriever
 
 from forecaster import timeseries
 
-
 df = retriever.get_data('bitcoin')
 price_header = 'price'
 
-for header in df.column_header:
-    if header is not 'date':
-        df[header] = timeseries.standardize_laggedly(df[header])
-
-df['positive_reply'] = timeseries.standardize_laggedly(df['positive_reply'])
-df['positive_topic'] = timeseries.standardize_laggedly(df['positive_topic'])
+for header in df.columns.values:
+    if header == 'date':
+        continue
+    df[header] = timeseries.first_differentiate(df[header])
 
 # Drop nan values
-df = df.dropna()
+restricted_df = df.dropna()
 
-restricted_df = df#.loc[mask]
+for header in restricted_df.columns.values:
+    if header == 'date' or header == price_header:
+        continue
 
-# Metrics and plots
-timeseries.metrics(restricted_df[price_header])
-timeseries.plot(restricted_df['date'], restricted_df[price_header], '', '')
+    # # Metrics and plots
+    # timeseries.metrics(restricted_df[price_header])
+    # timeseries.plot(restricted_df['date'], restricted_df[price_header], '', '')
 
-timeseries.metrics(restricted_df['positive_reply'])
-timeseries.plot(restricted_df['date'], restricted_df['positive_reply'], '', '')
+    # timeseries.metrics(restricted_df[header])
+    # timeseries.plot(restricted_df['date'], restricted_df[header], '', '')
 
-timeseries.metrics(restricted_df['positive_topic'])
-timeseries.plot(restricted_df['date'], restricted_df['positive_topic'], '', '')
+    # Standalone Granger causality
+    stack = np.column_stack((restricted_df[price_header], restricted_df[header]))
+    res = grangercausalitytests(stack, 13, verbose=False)
 
-# Standalone Granger causality
-stack = np.column_stack((restricted_df[price_header], restricted_df['positive_reply']))
-res = grangercausalitytests(stack, 13)
+    print('\n\n', header)
+    for k in res.keys():
+        print(res[k][0]['ssr_ftest'][1])
 
-print('\n\n\n\n\n')
-stack = np.column_stack((restricted_df[price_header], restricted_df['positive_topic']))
-res = grangercausalitytests(stack, 13)
-
-print(coint(restricted_df[price_header], restricted_df['positive_reply'], maxlag=2, autolag=None))
+    # print(coint(restricted_df[price_header], restricted_df[header], maxlag=2, autolag=None))
 
 # VAR model Granger causality
 # mdata = restricted_df[['price', 'positive_reply', 'positive_topic']]

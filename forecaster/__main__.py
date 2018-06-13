@@ -26,14 +26,14 @@ cryptocurrencies = ['bitcoin']
 estimations = ['count', 'paper'] # 
 data_headers = {
     'bitcoin': {
-        'price': ['total_topic', 'positive_topic', 'very_positive_topic', 'positive_reply'],
+        'price': ['positive_topic', 'total_topic', 'positive_reply', 'total_reply'],
         'transactions': ['total_topic', 'very_positive_topic', 'very_positive_reply'],
     }
 }
-label_headers = ['price', 'transactions']
+label_headers = ['price'] # , 'transactions'
 
 aode = classifiers.AODE()
-svclassifier = SVC(kernel='poly', degree=8, probability=True)
+svclassifier = SVC(kernel='rbf', degree=8, probability=True)
 kf = KFold(n_splits=10, shuffle=True) # 90% for training, 10% for testing
 
 results = {}
@@ -46,7 +46,7 @@ for cryptocurrency in cryptocurrencies:
     results[cryptocurrency] = {}
 
     # Collect data
-    df = retriever.get_data(cryptocurrency).apply(stats.zscore)
+    df = retriever.get_data(cryptocurrency)#.apply(stats.zscore)
     # Binerize labels
     df = retriever.categorize_labels(df, label_headers)
 
@@ -93,14 +93,14 @@ for cryptocurrency in cryptocurrencies:
                 train_labels, test_labels = lagged_labels[:697], lagged_labels[697:]
 
                 # Training
-                aode.fit(train_data, train_labels, online=False)
-                # svclassifier.fit(train_data, train_labels)
+                # aode.fit(train_data, train_labels, online=False)
+                svclassifier.fit(train_data, train_labels)
 
                 # Test
-                pred_labels = []
-                for element in test_data:
-                    pred_labels.append(aode.predict(element, estimation=estimation))
-                # pred_labels = svclassifier.predict(test_data)  
+                # pred_labels = []
+                # for element in test_data:
+                #     pred_labels.append(aode.predict(element, estimation=estimation))
+                pred_labels = svclassifier.predict(test_data)  
 
                 # print('\n\n\n\n\n\n')
                 # print(set(train_labels), set(pred_labels))
