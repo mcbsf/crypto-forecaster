@@ -6,6 +6,7 @@ import numpy as np
 
 from . import settings
 
+from .sentiment.analyser import SentimentAnalyser
 
 def categorize_labels(df, labels=['price', 'transactions']):
     df[labels] = df[labels].diff().apply(np.sign)
@@ -33,6 +34,9 @@ def get_data(cryptocurrency):
 
     topic_df = _read_csv(os.path.join(crypto_path, 'topic_opinion.csv'))
     _lower_headers(topic_df)
+
+    reply_sentiment_df = _read_csv(os.path.join(crypto_path, 'reply_opinion_sentiment.csv'))
+    _lower_headers(reply_sentiment_df)
 
     # Categorize vader scores
     reply_df = _transform_vader_series(reply_df, 'reply')
@@ -65,7 +69,7 @@ def get_data(cryptocurrency):
     # Set dates to index
     full_df.index = pd.DatetimeIndex(full_df['date'])
     full_df = full_df.drop(columns='date')
-
+    _build_data_csv(reply_sentiment_df)
     return full_df
 
 def _read_csv(file_path):
@@ -164,3 +168,25 @@ def _get_categorical_vader(header_suffix):
 
 def _merge_frames(dfs, on=None):
     return reduce(lambda left,right: pd.merge(left,right,on=on), dfs)
+
+def _build_data_csv(df):
+    print(df)
+    emotions_comment = []
+    for index, date, reply, vader in df.itertuples():
+        analyser = SentimentAnalyser()
+        dic_emotion = analyser.analyseSentence(reply)
+        emotions_comment.append(dic_emotion)
+        print('test')
+        print(dic_emotion)
+
+        if dic_emotion:
+            for emotion, amount in dic_emotion.items():    
+                print(emotion)
+                if emotion not in df:
+                    print('here')
+
+                    df[emotion] = 0
+                df[emotion][index] = amount
+        
+    df.to_csv("comments_data_and_sentiments.csv", sep='\t', encoding='utf-8')
+
