@@ -170,21 +170,13 @@ def _merge_frames(dfs, on=None):
     return reduce(lambda left,right: pd.merge(left,right,on=on), dfs)
 
 def _build_data_csv(df):
-    print(df)
-    emotions_comment = []
+
     for index, date, reply, vader in df.itertuples():
         analyser = SentimentAnalyser()
         dic_emotion = analyser.analyseSentence(reply)
-        emotions_comment.append(dic_emotion)
-        print('test')
-        print(dic_emotion)
-
         if dic_emotion:
             for emotion, amount in dic_emotion.items():    
-                print(emotion)
                 if emotion not in df:
-                    print('here')
-
                     df[emotion] = 0
                 df[emotion][index] = amount
         
